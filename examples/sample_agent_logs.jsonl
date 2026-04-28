@@ -1,0 +1,9 @@
+{"session_id":"s1","timestamp":"2026-04-28T08:00:00Z","role":"user","content":"My email is farmer.ravi@example.com. Please set up irrigation advice for plot 42."}
+{"session_id":"s1","timestamp":"2026-04-28T08:00:02Z","role":"assistant","content":"I will inspect the available weather and crop profile before suggesting irrigation."}
+{"session_id":"s1","timestamp":"2026-04-28T08:00:03Z","type":"tool_call","tool_name":"get_weather","tool_args":{"district":"Raipur","api_key":"sk_TEST1234567890abcdef"}}
+{"session_id":"s1","timestamp":"2026-04-28T08:00:04Z","type":"tool_result","tool_result":{"rain_forecast_mm":0,"temperature_c":35}}
+{"session_id":"s1","timestamp":"2026-04-28T08:00:05Z","type":"tool_call","tool_name":"get_crop_profile","tool_args":{"phone":"+91 98765 43210","crop":"paddy"}}
+{"session_id":"s1","timestamp":"2026-04-28T08:00:06Z","type":"error","content":"crop profile lookup timed out"}
+{"session_id":"s1","timestamp":"2026-04-28T08:00:08Z","role":"assistant","content":"The crop profile lookup failed, so I will provide a conservative recommendation and flag this for retry."}
+{"session_id":"s2","timestamp":"2026-04-28T09:00:00Z","role":"user","content":"What is LoRA fine-tuning?"}
+{"session_id":"s2","timestamp":"2026-04-28T09:00:02Z","role":"assistant","content":"LoRA fine-tuning updates small low-rank adapter matrices instead of all model weights, making supervised fine-tuning cheaper and easier to deploy."}

@@ -89,4 +89,38 @@ The pipeline should treat **export formats** as first-class requirements so the 
 5. Specify **one SFT JSONL schema** and **one DPO JSONL schema** (and chat template) validated end-to-end with a **LoRA** dry run and a **small DPO** dry run on toy data.
 6. Define **student model** constraints (context length, tool set) and a **filter + eval** plan for teacher-to-student parity before production swap.
 
+---
 
+## Prototype implementation
+
+This repository now includes an initial Python-first prototype that covers the first end-to-end slice of the pipeline:
+
+- JSON/JSONL log ingestion and normalization into a canonical event schema
+- deterministic rule-based PII redaction with consistent placeholders
+- session segmentation into Q&A units and agent trajectories
+- trajectory complexity tagging for staged training schedules
+- basic validation for tool-call consistency
+- SFT JSONL export and governed DPO candidate export
+
+The code intentionally uses only the Python standard library for the first pass so it can run in constrained environments and be reviewed without dependency setup.
+
+### Quickstart
+
+```bash
+python -m pip install -e .
+training-setup-logs examples/sample_agent_logs.jsonl --out-dir out
+```
+
+Outputs:
+
+- `out/sft.jsonl`: LoRA-ready supervised chat rows
+- `out/dpo_candidates.jsonl`: preference-pair candidates that require human approval
+- `out/manifest.json`: PII counts, validation counts, and complexity distribution
+
+Run tests:
+
+```bash
+python -m pytest
+```
+
+See [docs/schema.md](docs/schema.md) for the initial canonical schema and privacy assumptions.

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "training-setup-logs"
+version = "0.1.0"
+description = "Privacy-safe log-to-training-data pipeline for Q&A and agentic traces."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "OpenAgriNet contributors" }]
+dependencies = []
+
+[project.scripts]
+training-setup-logs = "training_setup_logs.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
