@@ -91,24 +91,31 @@ The pipeline should treat **export formats** as first-class requirements so the 
 
 ---
 
-## Prototype implementation
+## Implementation approach
 
-This repository now includes an initial Python-first prototype that covers the first end-to-end slice of the pipeline:
+This repository now includes a complete first implementation slice for the log-to-training pipeline:
 
-- JSON/JSONL log ingestion and normalization into a canonical event schema
-- deterministic rule-based PII redaction with consistent placeholders
+- file or directory ingestion for JSON/JSONL logs
+- canonical event schema for Q&A, assistant turns, tool calls, tool results, errors, and feedback
+- deterministic PII/secrets redaction with stable placeholders
+- redaction report with audit samples that never include raw sensitive values
 - session segmentation into Q&A units and agent trajectories
-- trajectory complexity tagging for staged training schedules
-- basic validation for tool-call consistency
-- SFT JSONL export and governed DPO candidate export
+- trajectory complexity tags for staged training schedules
+- deterministic train/validation/test splits with leakage buckets
+- optional tool registry validation for declared tool names and required arguments
+- SFT JSONL export for LoRA-compatible chat training
+- DPO candidate export for human-approved preference data
+- redacted canonical unit export for review and downstream transforms
 
-The code intentionally uses only the Python standard library for the first pass so it can run in constrained environments and be reviewed without dependency setup.
+The implementation stays dependency-light so it can run in controlled environments, but it is structured as installable Python package code rather than ad hoc scripts.
 
 ### Quickstart
 
 ```bash
 python -m pip install -e ".[dev]"
-training-setup-logs examples/sample_agent_logs.jsonl --out-dir out
+training-setup-logs examples/sample_agent_logs.jsonl \
+  --tool-schema examples/tool_schema.json \
+  --out-dir out
 ```
 
 Outputs:
@@ -125,4 +132,32 @@ Run tests:
 python -m pytest
 ```
 
-See [docs/schema.md](docs/schema.md) for the initial canonical schema and privacy assumptions.
+## Repository structure
+
+```text
+src/training_setup_logs/
+  audit.py         audit samples for redacted data review
+  cli.py           command line entrypoint
+  export.py        SFT, DPO candidate, and redacted-unit exporters
+  ingest.py        JSON/JSONL file and directory ingestion
+  pii.py           deterministic PII and secret redaction
+  schemas.py       canonical dataclasses
+  segment.py       session-to-training-unit segmentation
+  split.py         deterministic split and leakage-bucket assignment
+  tagging.py       trajectory complexity and scheduling tags
+  tool_schema.py   optional tool registry loading
+  validate.py      trajectory and tool-use validation
+examples/
+  sample_agent_logs.jsonl
+  tool_schema.json
+tests/
+  test_pipeline.py
+```
+
+## Canonical outputs
+
+Each `redacted_units.jsonl` row contains `unit_id`, `session_id`, `unit_type`, redacted events, split metadata, complexity tags, and validation issues. `sft.jsonl` converts the same units into chat-style `messages`. `dpo_candidates.jsonl` only emits governed preference candidates, such as failed/error traces followed by a later recovery, and marks them as requiring human approval.
+
+## Privacy assumptions
+
+The default redactor covers common emails, phone numbers, Aadhaar-like IDs, IP addresses, bearer tokens, API-key-shaped secrets, and URL secret query parameters. Production use should add organization-specific dictionaries, policy approval, and human audit sampling before training artifacts are shipped.

@@ -7,6 +7,7 @@ from training_setup_logs.schemas import LogEvent, TrainingUnit
 from training_setup_logs.segment import segment_events
 from training_setup_logs.split import split_metadata
 from training_setup_logs.tagging import tag_unit
+from training_setup_logs.tool_schema import ToolRegistry
 from training_setup_logs.validate import validate_unit
 
 
@@ -96,3 +97,49 @@ def test_validation_flags_tool_mismatch_and_missing_observation():
 
     assert [issue.code for issue in validate_unit(mismatch_unit)] == ["TOOL_RESULT_NAME_MISMATCH"]
     assert [issue.code for issue in validate_unit(missing_result_unit)] == ["MISSING_TOOL_OBSERVATION"]
+
+
+def test_tool_schema_validation_flags_unknown_tools_and_missing_args():
+    registry = ToolRegistry.from_path(ROOT / "examples" / "tool_schema.json")
+    unit = TrainingUnit(
+        unit_id="u5",
+        session_id="s5",
+        unit_type="agent_trajectory",
+        events=[
+            LogEvent(
+                event_id="e1",
+                session_id="s5",
+                timestamp=None,
+                type="tool_call",
+                tool_name="get_weather",
+                tool_args={},
+            ),
+            LogEvent(
+                event_id="e2",
+                session_id="s5",
+                timestamp=None,
+                type="tool_result",
+                tool_name="get_weather",
+                tool_result={},
+            ),
+            LogEvent(
+                event_id="e3",
+                session_id="s5",
+                timestamp=None,
+                type="tool_call",
+                tool_name="unknown_tool",
+            ),
+            LogEvent(
+                event_id="e4",
+                session_id="s5",
+                timestamp=None,
+                type="error",
+                content="failed",
+            ),
+        ],
+    )
+
+    codes = [issue.code for issue in validate_unit(unit, registry)]
+
+    assert "MISSING_TOOL_ARGS" in codes
+    assert "UNKNOWN_TOOL" in codes

@@ -94,6 +94,21 @@ def load_events(path: Path) -> list[LogEvent]:
     return normalize_records(read_json_records(path))
 
 
+def load_events_from_path(path: Path) -> list[LogEvent]:
+    """Load events from a file or directory of JSON/JSONL logs."""
+
+    if path.is_file():
+        return load_events(path)
+    if not path.is_dir():
+        raise FileNotFoundError(path)
+
+    records: list[dict[str, Any]] = []
+    for candidate in sorted(path.rglob("*")):
+        if candidate.suffix in {".json", ".jsonl"}:
+            records.extend(read_json_records(candidate))
+    return normalize_records(records)
+
+
 def _stable_event_id(record: dict[str, Any], index: int) -> str:
     payload = json.dumps(record, sort_keys=True, default=str)
     digest = hashlib.sha1(f"{index}:{payload}".encode("utf-8")).hexdigest()[:12]

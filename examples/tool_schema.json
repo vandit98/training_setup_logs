@@ -1,0 +1,10 @@
+{
+  "tools": {
+    "get_weather": {
+      "required_args": ["district"]
+    },
+    "get_crop_profile": {
+      "required_args": ["crop"]
+    }
+  }
+}

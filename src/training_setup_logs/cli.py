@@ -6,29 +6,39 @@ import argparse
 import json
 from pathlib import Path
 
+from training_setup_logs.audit import build_audit_sample
 from training_setup_logs.export import (
     to_dpo_candidate_row,
     to_redacted_unit_row,
     to_sft_row,
     write_jsonl,
 )
-from training_setup_logs.ingest import load_events
+from training_setup_logs.ingest import load_events_from_path
 from training_setup_logs.pii import PiiRedactor
 from training_setup_logs.segment import segment_events
 from training_setup_logs.schemas import TrainingUnit
 from training_setup_logs.tagging import tag_unit
+from training_setup_logs.tool_schema import ToolRegistry
 from training_setup_logs.validate import validate_unit
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build privacy-safe SFT and DPO JSONL from logs.")
-    parser.add_argument("input", type=Path, help="Input JSON or JSONL log file.")
+    parser.add_argument("input", type=Path, help="Input JSON/JSONL log file or directory.")
     parser.add_argument("--out-dir", type=Path, default=Path("out"), help="Output directory.")
+    parser.add_argument("--tool-schema", type=Path, help="Optional JSON registry for tool validation.")
+    parser.add_argument("--audit-sample-size", type=int, default=10)
     return parser
 
 
-def run(input_path: Path, out_dir: Path) -> dict[str, object]:
-    events = load_events(input_path)
+def run(
+    input_path: Path,
+    out_dir: Path,
+    tool_schema: Path | None = None,
+    audit_sample_size: int = 10,
+) -> dict[str, object]:
+    events = load_events_from_path(input_path)
+    tool_registry = ToolRegistry.from_path(tool_schema)
     redactor = PiiRedactor()
     redacted_events = [redactor.redact_event(event) for event in events]
     units = segment_events(redacted_events)
@@ -42,7 +52,8 @@ def run(input_path: Path, out_dir: Path) -> dict[str, object]:
         "sft_rows": len(sft_rows),
         "dpo_candidate_rows": len(dpo_rows),
         "pii_counts": redactor.report.counts_by_kind(),
-        "validation_issue_count": sum(len(validate_unit(unit)) for unit in units),
+        "validation_issue_count": sum(len(validate_unit(unit, tool_registry)) for unit in units),
+        "tool_registry_count": len(tool_registry.tools),
         "split_summary": _split_summary(sft_rows),
         "tag_summary": _tag_summary(units),
     }
@@ -56,6 +67,7 @@ def run(input_path: Path, out_dir: Path) -> dict[str, object]:
             {
                 "counts_by_kind": redactor.report.counts_by_kind(),
                 "findings": [finding.to_dict() for finding in redactor.report.findings],
+                "audit_sample": build_audit_sample(units, limit=audit_sample_size),
             },
             indent=2,
             sort_keys=True,
@@ -68,7 +80,7 @@ def run(input_path: Path, out_dir: Path) -> dict[str, object]:
 
 def main() -> None:
     args = build_parser().parse_args()
-    manifest = run(args.input, args.out_dir)
+    manifest = run(args.input, args.out_dir, args.tool_schema, args.audit_sample_size)
     print(json.dumps(manifest, indent=2, sort_keys=True))
 
 
