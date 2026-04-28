@@ -7,6 +7,7 @@ from pathlib import Path
 
 from training_setup_logs.pii import redact_jsonish
 from training_setup_logs.schemas import LogEvent, TrainingUnit
+from training_setup_logs.split import split_metadata
 from training_setup_logs.tagging import tag_unit
 from training_setup_logs.validate import validate_unit
 
@@ -21,12 +22,13 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
 def to_sft_row(unit: TrainingUnit) -> dict[str, object]:
     """Convert a training unit to a LoRA-ready chat SFT row."""
 
-    messages = [_event_to_message(event) for event in unit.events if _event_to_message(event)]
+    messages = _events_to_messages(unit.events)
     return {
         "id": unit.unit_id,
         "messages": messages,
         "metadata": {
             **unit.metadata,
+            **split_metadata(unit),
             **tag_unit(unit),
             "validation_issues": [issue.to_dict() for issue in validate_unit(unit)],
         },
@@ -53,15 +55,39 @@ def to_dpo_candidate_row(unit: TrainingUnit) -> dict[str, object] | None:
     prompt_events = unit.events[: last_user_index + 1]
     return {
         "id": f"{unit.unit_id}_dpo_candidate",
-        "prompt": [_event_to_message(event) for event in prompt_events if _event_to_message(event)],
+        "prompt": _events_to_messages(prompt_events),
         "chosen": [_event_to_message(chosen)],
         "rejected": [_event_to_message(rejected)],
         "metadata": {
+            **split_metadata(unit),
             **tag_unit(unit),
             "source_unit_id": unit.unit_id,
             "requires_human_approval": True,
         },
     }
+
+
+def to_redacted_unit_row(unit: TrainingUnit) -> dict[str, object]:
+    """Return the canonical redacted unit for audit and downstream transforms."""
+
+    return {
+        **unit.to_dict(),
+        "metadata": {
+            **unit.metadata,
+            **split_metadata(unit),
+            **tag_unit(unit),
+            "validation_issues": [issue.to_dict() for issue in validate_unit(unit)],
+        },
+    }
+
+
+def _events_to_messages(events: list[LogEvent]) -> list[dict[str, object]]:
+    messages: list[dict[str, object]] = []
+    for event in events:
+        message = _event_to_message(event)
+        if message is not None:
+            messages.append(message)
+    return messages
 
 
 def _event_to_message(event: LogEvent) -> dict[str, object] | None:

@@ -107,14 +107,16 @@ The code intentionally uses only the Python standard library for the first pass 
 ### Quickstart
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 training-setup-logs examples/sample_agent_logs.jsonl --out-dir out
 ```
 
 Outputs:
 
+- `out/redacted_units.jsonl`: canonical redacted units for audit and downstream transforms
 - `out/sft.jsonl`: LoRA-ready supervised chat rows
 - `out/dpo_candidates.jsonl`: preference-pair candidates that require human approval
+- `out/redaction_report.json`: PII finding kinds and placeholders, without raw sensitive values
 - `out/manifest.json`: PII counts, validation counts, and complexity distribution
 
 Run tests:

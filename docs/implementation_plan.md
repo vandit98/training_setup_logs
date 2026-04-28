@@ -11,6 +11,7 @@ Build a privacy-safe, repeatable pipeline that converts production Q&A and agent
 - Group sessions into Q&A and agent trajectory training units.
 - Export LoRA-ready SFT rows and human-review DPO candidate rows.
 - Produce a manifest with PII counts, validation counts, and complexity distribution.
+- Assign deterministic splits and leakage buckets from normalized user text and tool names.
 
 Status: initial stdlib-only prototype implemented.
 

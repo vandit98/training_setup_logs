@@ -11,6 +11,9 @@ requires-python = ">=3.10"
 authors = [{ name = "OpenAgriNet contributors" }]
 dependencies = []
 
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
 [project.scripts]
 training-setup-logs = "training_setup_logs.cli:main"
 

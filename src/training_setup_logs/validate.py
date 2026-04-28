@@ -9,7 +9,7 @@ def validate_unit(unit: TrainingUnit) -> list[ValidationIssue]:
     """Validate basic event and tool trajectory consistency."""
 
     issues: list[ValidationIssue] = []
-    pending_tools: list[str] = []
+    pending_tools: list[tuple[str, str]] = []
 
     for event in unit.events:
         if event.type == "tool_call":
@@ -22,7 +22,7 @@ def validate_unit(unit: TrainingUnit) -> list[ValidationIssue]:
                     )
                 )
             else:
-                pending_tools.append(event.tool_name)
+                pending_tools.append((event.tool_name, event.event_id))
 
         if event.type == "tool_result":
             if not pending_tools:
@@ -34,7 +34,18 @@ def validate_unit(unit: TrainingUnit) -> list[ValidationIssue]:
                     )
                 )
             else:
-                pending_tools.pop(0)
+                expected_tool, _ = pending_tools.pop(0)
+                if event.tool_name and event.tool_name != expected_tool:
+                    issues.append(
+                        ValidationIssue(
+                            code="TOOL_RESULT_NAME_MISMATCH",
+                            message=f"Tool result is for {event.tool_name}, expected {expected_tool}.",
+                            event_id=event.event_id,
+                        )
+                    )
+
+        if event.type == "error" and pending_tools:
+            pending_tools.pop(0)
 
         if event.type in {"user", "assistant"} and not event.content:
             issues.append(
@@ -44,5 +55,14 @@ def validate_unit(unit: TrainingUnit) -> list[ValidationIssue]:
                     event_id=event.event_id,
                 )
             )
+
+    for tool_name, event_id in pending_tools:
+        issues.append(
+            ValidationIssue(
+                code="MISSING_TOOL_OBSERVATION",
+                message=f"Tool call {tool_name} has no following result or error event.",
+                event_id=event_id,
+            )
+        )
 
     return issues
